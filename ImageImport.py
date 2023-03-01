@@ -1,7 +1,7 @@
 import cv2
-import os
-import csv
-import numpy as np
+import csv              #for accessing CSV file
+import numpy as np      #for arrays
+from PIL import Image   #for exporting images
 
 #iterates through labeled data and adds the labelled frames to the dataset
 csvfile = open('EchoNet-Dynamic\\VolumeTracings.csv')
@@ -9,6 +9,8 @@ labels = csv.reader(csvfile)
 vidNames = []       #names of videos used
 frameNums = []      #frame numbers used
 data = []           #list of labeled frames
+count = 0
+imgPath = 'Labeled-Data'
 for row in labels:
     if row[0] == 'FileName':
         continue
@@ -17,10 +19,17 @@ for row in labels:
             vidNames.append(row[0])
             frameNums = []
         frameNums.append(row[5])
+
+        #extracts the frame from the video
         vid = cv2.VideoCapture('EchoNet-Dynamic\\Videos\\' + row[0])
         vid.set(cv2.CAP_PROP_POS_FRAMES, float(row[5]))
         ret, frame = vid.read()
-        data.append(frame)
-        print('Video: ' + row[0] + ', Frame#: ' + row[5] + ', Read: ' + str(ret))
+        if frame is None:
+            continue
+        im = Image.fromarray(frame)
+        im.save(f"{imgPath}\\{row[0]}frame{row[5]}.jpeg")
+        count += 1
+        if count%100 == 0:
+            print(f'Frame #{count}')
 
 

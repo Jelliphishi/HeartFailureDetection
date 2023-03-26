@@ -38,8 +38,6 @@ for directory_path in glob.glob('Labeled-Data'):
             continue
         img = cv2.imread(img_path)
         imgDict.append((img_path, cv2.resize(img, dsize=(128, 128))))
-        if len(imgDict) == 100:
-            break
 
 print("importing labels")
 labelDict = []
@@ -56,8 +54,6 @@ for directory_path in glob.glob('Labels'):
                 else:
                     label[i][j] = 0
         labelDict.append((label_path, label))
-        if len(labelDict) == 100:
-            break
 
 print("splitting data")
 from sklearn.model_selection import train_test_split

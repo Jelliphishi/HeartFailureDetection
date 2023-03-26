@@ -1,3 +1,4 @@
+#pip install -r requirements.txt
 from segmentation_models import Unet
 from segmentation_models import get_preprocessing
 from segmentation_models.losses import bce_jaccard_loss
@@ -21,33 +22,64 @@ os.environ['KERAS_BACKEND'] = 'tensorflow' #defining and environment
 dataset = []
 labels = []
 
+errors = open("Errors.txt").read()
+
 print("loading model")
-model = Unet(backbone_name='resnet34', classes = 3, activation = 'sigmoid', encoder_weights='imagenet')
-#model = Linknet()
-#variables: optimizer and loss function
+model = Unet(backbone_name='resnet34', classes = 3, activation = 'relu', encoder_weights='imagenet')
 print("compiling model")
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['mse'])
+model.compile(optimizer='adam', loss="binary_crossentropy", metrics=['accuracy'])
 
 print("importing images")
-allImages = []
+imgDict = []
 for directory_path in glob.glob('Labeled-Data'):
     for img_path in glob.glob(os.path.join(directory_path, '*.jpeg')):
+        if img_path[13:len(img_path)-13] in errors:
+            print(img_path)
+            continue
         img = cv2.imread(img_path)
-        allImages.append(cv2.resize(img, dsize=(128, 128)))
-allImages = np.array(allImages)
+        imgDict.append((img_path, cv2.resize(img, dsize=(128, 128))))
+        if len(imgDict) == 100:
+            break
 
 print("importing labels")
-allLabels = []
+labelDict = []
 for directory_path in glob.glob('Labels'):
     for label_path in glob.glob(os.path.join(directory_path, '*.jpeg')):
-        label = cv2.imread(label_path)
-        allLabels.append(cv2.resize(label, dsize=(128, 128)))
-allLabels = np.array(allLabels).astype(float)
+        if label_path[7:len(label_path)-13] in errors:
+            print(label_path)
+            continue
+        label = cv2.resize(cv2.imread(label_path), dsize=(128, 128))
+        for i in range(128):
+            for j in range(128):
+                if label[i][j][0] > 127:
+                    label[i][j] = 1
+                else:
+                    label[i][j] = 0
+        labelDict.append((label_path, label))
+        if len(labelDict) == 100:
+            break
 
 print("splitting data")
 from sklearn.model_selection import train_test_split
-x_train, x_test, y_train, y_test = train_test_split(allImages, allLabels, test_size = 0.1, random_state=88)
-x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size = 1/9, random_state=88)
+x_train_dict, x_test_dict, y_train_dict, y_test_dict = train_test_split(imgDict, labelDict, test_size = 0.1, random_state=88)
+x_train_dict, x_val_dict, y_train_dict, y_val_dict = train_test_split(x_train_dict, y_train_dict, test_size = 1/9, random_state=88)
+
+def dict_to_array(dict):
+    list = []
+    for tuple in dict:
+        list.append(tuple[1])
+    return list
+
+x_train = np.array(dict_to_array(x_train_dict)).astype(float)
+y_train = np.array(dict_to_array(y_train_dict)).astype(float)
+x_val = np.array(dict_to_array(x_val_dict)).astype(float)
+y_val = np.array(dict_to_array(y_val_dict)).astype(float)
+x_test = np.array(dict_to_array(x_test_dict)).astype(float)
+y_test = np.array(dict_to_array(y_test_dict)).astype(float)
+
+with open(r'x_test.txt', 'w') as fp:
+    for entry in x_test_dict:
+        fp.write("%s\n" % entry[0])
 
 print("preprocessing inputs")
 preprocess_input = get_preprocessing('resnet34')
@@ -59,19 +91,40 @@ print("fitting model")
 history = model.fit(
                 x = x_train, 
                 y = y_train,
-                batch_size = 16,
-                epochs = 100,
+                batch_size = 10,
+                epochs = 10,
                 verbose = 1,
                 validation_data = (x_val, y_val))
+
+print('saving')
+model.save('model')
 
 print("plotting")
 loss = history.history['loss']
 val_loss = history.history['val_loss']
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
 epochs = range(1, len(loss) + 1)
-plt.plot(epochs, loss, 'y', label='Training loss')
-plt.plot(epochs, val_loss, 'r', label='Validation loss')
-plt.title('Training and validation loss')
+
+#plotting loss
+plt.plot(epochs, loss, 'y', label='Training Loss')
+plt.plot(epochs, val_loss, 'r', label='Validation Loss')
+plt.title('Training and Validation loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.legend()
-plt.show()
+plt.savefig(r'Figures\validation.png')
+
+plt.clf()
+
+#plotting accuracy
+plt.plot(epochs, acc, 'y', label='Training Accuracy')
+plt.plot(epochs, val_acc, 'r', label='Validation Accuracy')
+plt.title('Training and Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.savefig(r'Figures\accuracy.png')
+
+plt.clf()
+

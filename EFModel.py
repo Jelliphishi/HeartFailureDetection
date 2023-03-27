@@ -87,8 +87,8 @@ print("fitting model")
 history = model.fit(
                 x = x_train, 
                 y = y_train,
-                batch_size = 10,
-                epochs = 10,
+                batch_size = 32,
+                epochs = 128,
                 verbose = 1,
                 validation_data = (x_val, y_val))
 
@@ -103,17 +103,19 @@ val_acc = history.history['val_accuracy']
 epochs = range(1, len(loss) + 1)
 
 #plotting loss
+plt.ylim(0,0.25)
 plt.plot(epochs, loss, 'y', label='Training Loss')
 plt.plot(epochs, val_loss, 'r', label='Validation Loss')
 plt.title('Training and Validation loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.legend()
-plt.savefig(r'Figures\validation.png')
+plt.savefig(r'Figures\loss.png')
 
 plt.clf()
 
 #plotting accuracy
+plt.ylim(0,1)
 plt.plot(epochs, acc, 'y', label='Training Accuracy')
 plt.plot(epochs, val_acc, 'r', label='Validation Accuracy')
 plt.title('Training and Validation Accuracy')
